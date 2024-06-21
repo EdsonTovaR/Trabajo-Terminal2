@@ -7,12 +7,12 @@ class DataCleanerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Data Cleaner")
-        self.root.geometry("500x300")
+        self.root.geometry("600x500")
         self.root.configure(bg='black')
         self.data = None
 
         # Interfaz gráfica
-        self.label = tk.Label(root, text="Arrastra y suelta el archivo aquí", width=40, height=10, bg="blue", fg="white", font=("century gothic", 14))
+        self.label = tk.Label(root, text="Seleccionar archivo", width=40, height=10, bg="blue", fg="white", font=("century gothic", 14))
         self.label.pack(padx=20, pady=20)
         self.label.bind("<Button-1>", self.load_file)
 
