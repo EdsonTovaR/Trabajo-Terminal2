@@ -1,44 +1,65 @@
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
-from tensorflow.keras.models import Model
-from tensorflow.keras.datasets import mnist
-import numpy as np
+import pandas as pd
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree import export_graphviz
 
-# Cargar el conjunto de datos MNIST
-(x_train, _), (x_test, _) = mnist.load_data()
 
-# Normalizar y remodelar los datos de entrada
-x_train = x_train.astype('float32') / 255.
-x_test = x_test.astype('float32') / 255.
-x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
-x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
+#Conjunto de datos
+def Conjunto_Datos():
+    data = pd.read_csv("tested.csv")
+    return data
 
-# Definir la arquitectura del autoencoder convolucional
-input_img = Input(shape=(28, 28, 1))
-x = Conv2D(16, (3, 3), activation='relu', padding='same')(input_img)
-x = MaxPooling2D((2, 2), padding='same')(x)
-x = Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-x = MaxPooling2D((2, 2), padding='same')(x)
-x = Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-encoded = MaxPooling2D((2, 2), padding='same')(x)
+#Exploracion de los datos
+def Exploracion_Datos(data):
+    print("Exploración de los datos")
+    print(data.head())
+    print(data.describe())
+    print(data.info())
+    
+#Identificacion de variables irrelevantes
+def Identificacion(data):
+    #Borramos las tablas que no sirvan como Nombres
+    data = data.drop(['Nombre', 'Boleto', 'Sexo', 'Cabina', 'Embarcado'], axis=1)
+    
+    #usamos el promedio en los valores que tiene NaN
+    data = data.fillna(data.mean())
+  
+    
+    arbol = DecisionTreeRegressor()
+    arbol.fit(data.iloc[:, :-1], data.iloc[:, -1])
+    
+    #Importancia de las variables
+    importacias = arbol.feature_importances_
+    print(importacias)
+    return data
 
-x = Conv2D(8, (3, 3), activation='relu', padding='same')(encoded)
-x = UpSampling2D((2, 2))(x)
-x = Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-x = UpSampling2D((2, 2))(x)
-x = Conv2D(16, (3, 3), activation='relu')(x)
-x = UpSampling2D((2, 2))(x)
-decoded = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(x)
+#Evaluamos la calidad de los datos
+def Calidad_Datos(data):
+    #Verificamos si hay datos nulos
+    print(data.isnull().sum())
+    #Verificamos si hay datos duplicados
+    print(data.duplicated().sum())
+    #Verificamos si hay datos atipicos
+    print(data.describe())
+    #Verificamos si hay datos unicos
+    print(data.nunique())
+    #Verificamos si hay datos en blanco
+    print(data.isnull().sum())
+    
+    return 
 
-# Compilar el modelo
-autoencoder = Model(input_img, decoded)
-autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+#Guardamos los datos limpios y los mostramos con graphviz
+def Guardar_Datos(data):
+    data.to_csv("cleaned_data.csv", index=False)
+    return
 
-# Entrenar el modelo
-autoencoder.fit(x_train, x_train,
-                epochs=10,
-                batch_size=128,
-                shuffle=True,
-                validation_data=(x_test, x_test))
 
-# Reconstruir las imágenes de prueba
-decoded_imgs = autoencoder.predict(x_test)
+
+    
+if __name__ == "__main__":
+    print("CONJUNTO DE DATOS: ")
+    data = Conjunto_Datos()
+    print("EXPLORACION DE DATOS")
+    Exploracion_Datos(data)
+    print("IDENTIFICACION DE DATOS")
+    Identificacion(data)
+    Guardar_Datos(data)
