@@ -22,12 +22,19 @@ class DataCleanerApp:
 
     def load_file(self, event):
         file_path = filedialog.askopenfilename()
+        
+        
         if file_path:
             self.data = pd.read_csv(file_path)
             self.label.config(text="Archivo cargado: " + file_path.split("/")[-1])
             self.clean_button.config(state=tk.NORMAL)
-
+            
+            
+       
     def clean_data(self):
+        
+        
+        
         if self.data is not None:
             self.impute_missing_values()
             self.label.config(text="Datos limpiados y guardados como 'cleaned_data.csv'")
