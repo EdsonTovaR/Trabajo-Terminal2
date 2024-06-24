@@ -32,14 +32,12 @@ class DataCleanerApp:
             
        
     def clean_data(self):
-        #borramos las tablas que no sirvan y no sean un float o number
-        self.data.dropna(inplace=True)
-        self.data = self.data.select_dtypes(include=['float64', 'int64'])
-        self.data.to_csv("cleaned_data.csv", index=False)
-            
-        #guardamos el archivo
-        #self.data.to_csv("cleaned_data.csv", index=False)
         
+        #borramos las tablas que no sirvan y no sean un float o number
+        #self.data.dropna(inplace=True)
+        #self.data = self.data.select_dtypes(include=['float64', 'int64'])
+            
+
         if self.data is not None:
             self.impute_missing_values()
             self.label.config(text="Datos limpiados y guardados como 'cleaned_data.csv'")
