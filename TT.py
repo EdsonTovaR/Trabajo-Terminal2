@@ -26,13 +26,15 @@ class DataCleanerApp:
         self.clean_button = tk.Button(root, text="Limpiar Datos", command=self.clean_data, bg="navy", fg="white", font=("century gothic", 14))
         self.clean_button.pack(padx=20, pady=20)
         self.clean_button.config(state=tk.DISABLED)
+       
         
         self.save_button = tk.Button(root, text="Guardar Datos", command=self.save_data, bg="green", fg="white", font=("century gothic", 14))
         self.save_button.pack(padx=20, pady=20)
         self.save_button.config(state=tk.DISABLED)
 
-        self.progress = ttk.Progressbar(root, orient='horizontal', length=400, mode='indeterminate')
-        self.progress.pack(pady=10)
+        self.progress = ttk.Progressbar(root, orient='horizontal', length=400, mode='determinate')
+        self.progress.pack(pady=50)
+        
 
     def load_file(self, event):
         try:
@@ -74,9 +76,11 @@ class DataCleanerApp:
         if self.data is not None:
             self.progress.start()
             self.impute_missing_values()
-            self.progress.stop()
+           
             self.label.config(text="Datos limpiados.")
             self.save_button.config(state=tk.NORMAL)
+            
+            
 
     def save_data(self):
         try:
@@ -88,7 +92,7 @@ class DataCleanerApp:
     def impute_missing_values(self):
         for column in self.data.columns:
             if self.data[column].isnull().any():
-                if self.evaluate_imputation(column) <= 0.1:  # Threshold for acceptable MSE
+                if self.evaluate_imputation(column) <= 0.1:  # Umbral aceptable
                     self.impute_column(column)
                 else:
                     print(f"Column {column} has high MSE for imputation. Skipping.")
@@ -135,7 +139,10 @@ class DataCleanerApp:
             
             mse = mean_squared_error(y_train, y_pred)
             print(f'Mean Squared Error for column {column}: {mse}')
+            
             return mse  # Return the MSE value
+        
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = DataCleanerApp(root)
