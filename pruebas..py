@@ -1,160 +1,160 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, ttk, simpledialog
 import pandas as pd
-from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import IsolationForest
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import seaborn as sns
-from sklearn.cluster import KMeans
 
 class DataCleanerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Aplicación de Limpieza de Datos con Árboles de Decisiones")
+        self.root.title("Data Cleaner")
+        self.root.geometry("1200x800")
+        self.root.configure(bg='sky blue')
         self.data = None
+
+        # Interfaz gráfica
+        self.label = tk.Label(root, text="Seleccionar archivo", width=40, height=2, bg="blue", fg="white", font=("century gothic", 14))
+        self.label.grid(row=0, column=0, columnspan=2, padx=20, pady=20)
+        self.label.bind("<Button-1>", self.cargar_datos)
         
-        # Elementos de la interfaz
-        self.create_widgets()
+        # Frame para los botones
+        button_frame = tk.Frame(root, bg='black')
+        button_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
+        
+        self.clean_button = tk.Button(button_frame, text="Limpiar Datos", command=self.limpiar_datos, bg="navy", fg="white", font=("century gothic", 14))
+        self.clean_button.grid(row=0, column=0, padx=10, pady=10)
+        self.clean_button.config(state=tk.DISABLED)
+
+        self.save_button = tk.Button(button_frame, text="Guardar Datos", command=self.guardar_datos, bg="green", fg="white", font=("century gothic", 14))
+        self.save_button.grid(row=0, column=1, padx=10, pady=10)
+        self.save_button.config(state=tk.DISABLED)
+        
+        self.show_button = tk.Button(button_frame, text="Mostrar Datos", command=self.mostrar_datos, bg="blue", fg="white", font=("century gothic", 14))
+        self.show_button.grid(row=0, column=2, padx=10, pady=10)
+        self.show_button.config(state=tk.DISABLED)
+        
+        self.cleaning_button = tk.Button(button_frame, text="Opciones de Limpieza", command=self.mostrar_menu_limpieza, bg="blue", fg="white", font=("century gothic", 14))
+        self.cleaning_button.grid(row=1, column=0, padx=10, pady=10)
+        self.cleaning_button.config(state=tk.DISABLED)
+        
+        self.suggest_button = tk.Button(button_frame, text="Sugerir Limpieza", command=self.sugerir_limpieza, bg="orange", fg="white", font=("century gothic", 14))
+        self.suggest_button.grid(row=1, column=1, padx=10, pady=10)
+        self.suggest_button.config(state=tk.DISABLED)
+        
+        self.anomaly_button = tk.Button(button_frame, text="Detectar Anomalías", command=self.detectar_anomalias, bg="red", fg="white", font=("century gothic", 14))
+        self.anomaly_button.grid(row=1, column=2, padx=10, pady=10)
+        self.anomaly_button.config(state=tk.DISABLED)
+        
+        self.train_button = tk.Button(button_frame, text="Entrenar Modelo", command=self.entrenar_modelo, bg="blue", fg="white", font=("century gothic", 14))
+        self.train_button.grid(row=2, column=0, padx=10, pady=10)
+        self.train_button.config(state=tk.DISABLED)
+        
+        self.graph_button = tk.Button(button_frame, text="Mostrar Gráficos", command=self.mostrar_graficos, bg="blue", fg="white", font=("century gothic", 14))
+        self.graph_button.grid(row=2, column=1, padx=10, pady=10)
+        self.graph_button.config(state=tk.DISABLED)
+
+        self.progress = ttk.Progressbar(root, orient='horizontal', length=800, mode='determinate')
+        self.progress.grid(row=2, column=0, columnspan=2, padx=20, pady=20)
+        
+        self.data_text = tk.Text(root, width=120, height=10, bg="white", fg="black", font=("century gothic", 12))
+        self.data_text.grid(row=3, column=0, columnspan=2, padx=20, pady=20)
+        self.data_text.config(state=tk.DISABLED)
+
+    def cargar_datos(self, event):
+        try:
+            file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+            if file_path:
+                self.data = pd.read_csv(file_path)
+                self.label.config(text="Archivo cargado: " + file_path.split("/")[-1])
+                self.clean_button.config(state=tk.NORMAL)
+                self.show_button.config(state=tk.NORMAL)
+                self.cleaning_button.config(state=tk.NORMAL)
+                self.suggest_button.config(state=tk.NORMAL)
+                self.anomaly_button.config(state=tk.NORMAL)
+                self.train_button.config(state=tk.NORMAL)
+                self.graph_button.config(state=tk.NORMAL)
+        except Exception as e:
+            self.label.config(text=f"Error al cargar el archivo: {str(e)}")
+            self.clean_button.config(state=tk.DISABLED)
+            
+    def guardar_datos(self):
+        try:
+            self.data.to_csv("cleaned_data.csv", index=False)
+            self.label.config(text="Datos guardados como 'cleaned_data.csv'")
+        except Exception as e:
+            self.label.config(text=f"Error al guardar el archivo: {str(e)}")
+            
+    def mostrar_datos(self):
+        if self.data is not None:
+            self.data_text.config(state=tk.NORMAL)
+            self.data_text.delete("1.0", tk.END)
+            self.data_text.insert(tk.END, f"Resumen de los datos:\n\n")
+            self.data_text.insert(tk.END, f"Columnas: {self.data.shape[1]}\n")
+            self.data_text.insert(tk.END, f"Filas: {self.data.shape[0]}\n\n")
+            self.data_text.insert(tk.END, f"{self.data.head()}")
+            self.data_text.config(state=tk.DISABLED)
+            self.save_button.config(state=tk.NORMAL)
+        
+    def mostrar_menu_limpieza(self):
+        def limpiar_opcion(opcion):
+            if opcion == "Eliminar Nulos":
+                self.data = self.data.dropna()
+            elif opcion == "Rellenar Nulos con Media":
+                self.data = self.data.fillna(self.data.mean())
+            self.mostrar_datos()
+        
+        opciones = ["Eliminar Nulos", "Rellenar Nulos con Media"]
+        seleccion = simpledialog.askstring("Opciones de Limpieza", "Selecciona una opción:", initialvalue=opciones[0])
+        limpiar_opcion(seleccion)
+
+    def sugerir_limpieza(self):
+        if self.data is not None:
+            missing_values = self.data.isnull().sum().sum()
+            unique_values = self.data.nunique().sum()
+            
+            sugerencias = []
+            
+            if missing_values > 0:
+                sugerencias.append(f"Hay {missing_values} valores faltantes.")
+            
+            if unique_values / self.data.size < 0.05:
+                sugerencias.append("Algunas columnas pueden tener baja diversidad en los datos.")
+            
+            self.data_text.config(state=tk.NORMAL)
+            self.data_text.delete("1.0", tk.END)
+            self.data_text.insert(tk.END, "\n".join(sugerencias) + "\n")
+            self.data_text.config(state=tk.DISABLED)
     
-    def create_widgets(self):
-        self.load_button = tk.Button(self.root, text="Cargar Archivo CSV", command=self.load_file)
-        self.load_button.pack(pady=10)
-        
-        self.column_listbox = tk.Listbox(self.root, selectmode=tk.MULTIPLE)
-        self.column_listbox.pack(pady=10)
-        
-        self.strategy_var = tk.StringVar(value="mean")
-        self.strategy_menu = tk.OptionMenu(self.root, self.strategy_var, "mean", "median", "most_frequent", "KNN", "Iterative")
-        self.strategy_menu.pack(pady=10)
-        
-        self.impute_button = tk.Button(self.root, text="Imputar Datos", command=self.impute_data)
-        self.impute_button.pack(pady=10)
-        
-        self.outlier_button = tk.Button(self.root, text="Detectar Outliers", command=self.detect_outliers)
-        self.outlier_button.pack(pady=10)
-        
-        self.suggest_button = tk.Button(self.root, text="Sugerir Transformaciones", command=self.suggest_transformations)
-        self.suggest_button.pack(pady=10)
-        
-        self.target_menu = tk.Listbox(self.root, selectmode=tk.SINGLE)
-        self.target_menu.pack(pady=10)
-        
-        self.features_listbox = tk.Listbox(self.root, selectmode=tk.MULTIPLE)
-        self.features_listbox.pack(pady=10)
-        
-        self.train_button = tk.Button(self.root, text="Entrenar Árbol de Decisiones", command=self.train_model)
-        self.train_button.pack(pady=10)
-        
-        self.canvas_frame = tk.Frame(self.root)
-        self.canvas_frame.pack(pady=10)
+    def detectar_anomalias(self):
+        if self.data is not None:
+            clf = IsolationForest(contamination=0.1)
+            self.data['anomaly'] = clf.fit_predict(self.data.select_dtypes(include=[float, int]))
+            self.data_text.config(state=tk.NORMAL)
+            self.data_text.delete("1.0", tk.END)
+            self.data_text.insert(tk.END, f"Anomalías detectadas:\n{self.data[self.data['anomaly'] == -1]}\n")
+            self.data_text.config(state=tk.DISABLED)
+            
+    def entrenar_modelo(self):
+        if self.data is not None:
+            X = self.data.select_dtypes(include=[float, int]).drop(columns=['anomaly'], errors='ignore')
+            y = self.data.iloc[:, -1]
+            model = LinearRegression()
+            model.fit(X, y)
+            self.data_text.config(state=tk.NORMAL)
+            self.data_text.delete("1.0", tk.END)
+            self.data_text.insert(tk.END, f"Modelo entrenado con coeficientes: {model.coef_}\n")
+            self.data_text.config(state=tk.DISABLED)
+
+    def mostrar_graficos(self):
+        if self.data is not None:
+            self.data.hist(figsize=(10, 6))
+            plt.show()
+            
+    def limpiar_datos(self):
+        pass
     
-    def load_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
-        if file_path:
-            self.data = pd.read_csv(file_path)
-            self.update_column_listbox()
-            messagebox.showinfo("Carga de Datos", "Archivo cargado exitosamente.")
-    
-    def update_column_listbox(self):
-        self.column_listbox.delete(0, tk.END)
-        self.target_menu.delete(0, tk.END)
-        self.features_listbox.delete(0, tk.END)
-        
-        for col in self.data.columns:
-            self.column_listbox.insert(tk.END, col)
-            self.target_menu.insert(tk.END, col)
-            self.features_listbox.insert(tk.END, col)
-    
-    def impute_data(self):
-        selected_indices = self.column_listbox.curselection()
-        selected_columns = [self.column_listbox.get(i) for i in selected_indices]
-        
-        if selected_columns:
-            strategy = self.strategy_var.get()
-            
-            if strategy == "mean" or strategy == "median" or strategy == "most_frequent":
-                imputer = SimpleImputer(strategy=strategy)
-            elif strategy == "KNN":
-                imputer = KNNImputer()
-            elif strategy == "Iterative":
-                imputer = IterativeImputer()
-            else:
-                messagebox.showwarning("Imputación", "Estrategia de imputación no válida.")
-                return
-            
-            self.data[selected_columns] = imputer.fit_transform(self.data[selected_columns])
-            messagebox.showinfo("Imputación", "Datos imputados exitosamente.")
-        else:
-            messagebox.showwarning("Imputación", "Seleccione columnas para imputar.")
-    
-    def detect_outliers(self):
-        selected_indices = self.column_listbox.curselection()
-        selected_columns = [self.column_listbox.get(i) for i in selected_indices]
-        
-        if selected_columns:
-            detector = IsolationForest(contamination=0.1)
-            outliers = detector.fit_predict(self.data[selected_columns])
-            outlier_indices = self.data[outliers == -1].index
-            self.data = self.data.drop(outlier_indices)
-            messagebox.showinfo("Detección de Outliers", f"Se eliminaron {len(outlier_indices)} outliers.")
-        else:
-            messagebox.showwarning("Detección de Outliers", "Seleccione columnas para la detección de outliers.")
-    
-    def suggest_transformations(self):
-        selected_indices = self.column_listbox.curselection()
-        selected_columns = [self.column_listbox.get(i) for i in selected_indices]
-        
-        if selected_columns:
-            kmeans = KMeans(n_clusters=2)
-            clusters = kmeans.fit_predict(self.data[selected_columns])
-            
-            # Aquí podrías agregar lógica para sugerir transformaciones basadas en los clusters
-            messagebox.showinfo("Sugerencias", "Transformaciones sugeridas basadas en clusters.")
-        else:
-            messagebox.showwarning("Sugerencias", "Seleccione columnas para las sugerencias.")
-    
-    def train_model(self):
-        target_index = self.target_menu.curselection()
-        feature_indices = self.features_listbox.curselection()
-        
-        if target_index and feature_indices:
-            target_column = self.target_menu.get(target_index)
-            feature_columns = [self.features_listbox.get(i) for i in feature_indices]
-            
-            X = self.data[feature_columns]
-            y = self.data[target_column]
-            
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-            
-            model = DecisionTreeClassifier()
-            model.fit(X_train, y_train)
-            predictions = model.predict(X_test)
-            accuracy = accuracy_score(y_test, predictions)
-            
-            messagebox.showinfo("Resultados", f"Precisión del modelo: {accuracy:.2f}")
-            
-            # Visualización del árbol
-            fig, ax = plt.subplots(figsize=(12, 8))
-            plot_tree(model, filled=True, feature_names=feature_columns, class_names=target_column, ax=ax)
-            
-            # Limpiar el frame de la visualización previa
-            for widget in self.canvas_frame.winfo_children():
-                widget.destroy()
-            
-            canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
-            canvas.draw()
-            canvas.get_tk_widget().pack()
-        else:
-            messagebox.showwarning("Entrenamiento", "Seleccione una columna objetivo y características.")
-    
-def main():
+if __name__ == "__main__":
     root = tk.Tk()
     app = DataCleanerApp(root)
     root.mainloop()
-
-if __name__ == "__main__":
-    main()

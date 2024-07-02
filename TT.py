@@ -1,14 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 import pandas as pd
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error
-from tkinter import filedialog, ttk, scrolledtext
 
 class DataCleanerApp:
     def __init__(self, root):
@@ -39,27 +31,23 @@ class DataCleanerApp:
         self.progress = ttk.Progressbar(root, orient='horizontal', length=400, mode='determinate')
         self.progress.pack(pady=50)
         
-        #Boton para seleccionar las columnas
-        self.column_button = tk.Button(root, text="Seleccionar Columnas", command=self.seleccion_columnas, bg="blue", fg="white", font=("century gothic", 14))
-        self.column_button.pack(padx=20, pady=20)
+        #Boton para mostrar datos
+        self.show_button = tk.Button(root, text="Mostrar Datos", command=self.mostrar_datos, bg="blue", fg="white", font=("century gothic", 14))
+        self.show_button.pack(padx=20, pady=20)
+        self.show_button.config(state=tk.DISABLED)
         
-        #Boton para seleccionar las opciones de limpieza    
-        self.cleaning_button = tk.Button(root, text="Opciones de Limpieza", command=self.opciones_limpieza, bg="blue", fg="white", font=("century gothic", 14))
-        self.cleaning_button.pack(padx=20, pady=20)
-        
-        #Boton para mostrar datos que solo se mostrara al ejecutar la funcion seleccionar columnas
-        self.summary_button = tk.Button(root, text="Resumen de Datos", command=self.mostrar_resumen, bg="blue", fg="white", font=("century gothic", 14))
-        self.summary_button.pack(padx=20, pady=20)
-        self.summary_button.config(state="disabled")
-        
-         # Cuadro de texto para mostrar los datos de las columnas seleccionadas
-        self.data_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=10, font=("century gothic", 12))
+        #Texto para mostrar los datos
+        self.data_text = tk.Text(root, width=100, height=10, bg="white", fg="black", font=("century gothic", 12))
         self.data_text.pack(padx=20, pady=20)
         self.data_text.config(state=tk.DISABLED)
         
-        # Inicialmente oculta la Listbox
-        self.column_listbox = None
-
+        #Boton para seleccionar las opciones de limpieza    
+        self.cleaning_button = tk.Button(root, text="Opciones de Limpieza", command=self.limpiar_datos, bg="blue", fg="white", font=("century gothic", 14))
+        self.cleaning_button.pack(padx=20, pady=20)
+        
+       
+        
+        
         
         
     def cargar_datos(self, event):
@@ -69,6 +57,9 @@ class DataCleanerApp:
                 self.data = pd.read_csv(file_path)
                 self.label.config(text="Archivo cargado: " + file_path.split("/")[-1])
                 self.clean_button.config(state=tk.NORMAL)
+                datos=self.data 
+                print(self.data.head)
+                self.show_button.config(state=tk.NORMAL)
         except Exception as e:
             self.label.config(text=f"Error al cargar el archivo: {str(e)}")
             self.clean_button.config(state=tk.DISABLED)
@@ -80,47 +71,29 @@ class DataCleanerApp:
         except Exception as e:
             self.label.config(text=f"Error al guardar el archivo: {str(e)}")
             
-    #funcion para que el usuario seleccione las columnas a revisar
-    def seleccion_columnas(self):
-        self.column_listbox = tk.Listbox(self.root, bg="red", selectmode=tk.MULTIPLE)
-        self.column_listbox.pack(pady=10)
-        for column in self.data.columns:
-            self.column_listbox.insert(tk.END, column)
-        self.column_button.config(state="disabled")
-        self.summary_button.config(state="normal")
-        #Mostramos las columnas de la base de datos y lo mandamos a la funcion mostrar_resumen
-        self.mostrar_resumen()
+    #Mostramos los datos en la interfaz con un resumen de ellos
+    def mostrar_datos(self):
+        self.data_text.config(state=tk.NORMAL)
+        self.data_text.delete("1.0", tk.END)
+        self.data_text.insert(tk.END, f"Resumen de los datos:\n\n")
+        self.data_text.insert(tk.END, f"Columnas: {self.data.shape[1]}\n")
+        self.data_text.insert(tk.END, f"Filas: {self.data.shape[0]}\n\n")
+        self.data_text.insert(tk.END, f"{self.data.head()}")
+        self.data_text.config(state=tk.DISABLED)
+        self.save_button.config(state=tk.NORMAL)
+        self.confidence_button.config(state=tk.NORMAL)
+        
+    
     
         
-        
-    def mostrar_resumen(self):
-        selected_indices = self.column_listbox.curselection()
-        self.selected_columns = [self.data.columns[i] for i in selected_indices]
-        
-        # Mostrar datos de las columnas seleccionadas
-        self.data_text.config(state=tk.NORMAL)
-        self.data_text.delete(1.0, tk.END)
-        
-        if self.selected_columns:
-            selected_data = self.data[self.selected_columns]
-            self.data_text.insert(tk.END, selected_data.to_string(index=False))
-        else:
-            self.data_text.insert(tk.END, "No hay columnas seleccionadas.")
-        
-        self.data_text.config(state=tk.DISABLED)
-        
-        
-    #opciones de limpieza con tecnicas de imputacion y preprocesamiento
-    def opciones_limpieza(self):
-        self.strategy_var = tk.StringVar(value="mean")
-        self.strategy_menu = tk.OptionMenu(self.root, self.strategy_var, "Promedio", "Mediana", "Más_Frecuente", "KNN", "Iterative")
-        self.strategy_menu.pack(pady=10)
-        self.cleaning_button.config(state="disabled")
-        
     def limpiar_datos(self):
-        
         return
-
+            
+   
+  
+  
+  
+  
     
 
         
