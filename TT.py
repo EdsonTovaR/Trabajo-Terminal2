@@ -96,7 +96,7 @@ class DataCleanerApp:
                 if self.evaluate_imputation(column) <= 0.1:  # Umbral aceptable del MSE
                     self.impute_column(column)
                 else:
-                    print(f"Column {column} has high MSE for imputation. Skipping.")
+                    print(f"Columna {column} tiene un valor alto para la imputacion. Saltando.")
 
     def impute_column(self, column):
         df = self.data.copy()
@@ -112,7 +112,7 @@ class DataCleanerApp:
             X_train = preprocessor.fit_transform(X_train)
             X_test = preprocessor.transform(X_test)
 
-            param_grid = {'max_depth': [3, 5, 7, 10], 'min_samples_split': [2, 5, 10]}
+            param_grid = {'max_profundidad': [3, 5, 7, 10], 'min_muestras_divididas': [2, 5, 10]}
             tree = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=3)  # Cambiado a cv=3 para tiempos más cortos
             tree.fit(X_train, y_train)
 
@@ -123,7 +123,7 @@ class DataCleanerApp:
         df = self.data.copy()
         df_known = df[df[column].notnull()]
         df_unknown = df[df[column].isnull()]
-
+        
         if not df_unknown.empty:
             X_train = df_known.drop(columns=[column])
             y_train = df_known[column]
@@ -131,15 +131,15 @@ class DataCleanerApp:
             preprocessor = self.preprocess_data(X_train)
             X_train = preprocessor.fit_transform(X_train)
 
-            param_grid = {'max_depth': [3, 5, 7, 10], 'min_samples_split': [2, 5, 10]}
+            param_grid = {'max_profundidad': [3, 5, 7, 10], 'min_muestras_divididas': [2, 5, 10]}
             tree = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=3)  # Cambiado a cv=3 para tiempos más cortos
             tree.fit(X_train, y_train)
-
+            
             X_test = X_train
             y_pred = tree.predict(X_test)
             
             mse = mean_squared_error(y_train, y_pred)
-            print(f'Mean Squared Error for column {column}: {mse}')
+            print(f'Error cuadrático medio para la columna {column}: {mse}')
             
             return mse  # Return the MSE value
         
