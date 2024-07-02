@@ -8,32 +8,61 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_squared_error
+from tkinter import filedialog, ttk, scrolledtext
 
 class DataCleanerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Data Cleaner")
-        self.root.geometry("600x600")
+        self.root.geometry("800x400")
         self.root.configure(bg='black')
         self.data = None
 
         # Interfaz gráfica
+        
+        #Boton para seleccionar archivos del almacenamiento
         self.label = tk.Label(root, text="Seleccionar archivo", width=40, height=10, bg="blue", fg="white", font=("century gothic", 14))
         self.label.pack(padx=20, pady=20)
-        self.label.bind("<Button-1>", self.load_file)
-
-        self.clean_button = tk.Button(root, text="Limpiar Datos", command=self.clean_data, bg="navy", fg="white", font=("century gothic", 14))
+        self.label.bind("<Button-1>", self.cargar_datos)
+        
+        #Boton para limpiar datos
+        self.clean_button = tk.Button(root, text="Limpiar Datos", command=self.limpiar_datos, bg="navy", fg="white", font=("century gothic", 14))
         self.clean_button.pack(padx=20, pady=20)
         self.clean_button.config(state=tk.DISABLED)
 
-        self.save_button = tk.Button(root, text="Guardar Datos", command=self.save_data, bg="green", fg="white", font=("century gothic", 14))
+        #Boton para guardar datos
+        self.save_button = tk.Button(root, text="Guardar Datos", command=self.guardar_datos, bg="green", fg="white", font=("century gothic", 14))
         self.save_button.pack(padx=20, pady=20)
         self.save_button.config(state=tk.DISABLED)
-
+        
+        #Barra de progreso
         self.progress = ttk.Progressbar(root, orient='horizontal', length=400, mode='determinate')
         self.progress.pack(pady=50)
+        
+        #Boton para seleccionar las columnas
+        self.column_button = tk.Button(root, text="Seleccionar Columnas", command=self.seleccion_columnas, bg="blue", fg="white", font=("century gothic", 14))
+        self.column_button.pack(padx=20, pady=20)
+        
+        #Boton para seleccionar las opciones de limpieza    
+        self.cleaning_button = tk.Button(root, text="Opciones de Limpieza", command=self.opciones_limpieza, bg="blue", fg="white", font=("century gothic", 14))
+        self.cleaning_button.pack(padx=20, pady=20)
+        
+        #Boton para mostrar datos que solo se mostrara al ejecutar la funcion seleccionar columnas
+        self.summary_button = tk.Button(root, text="Resumen de Datos", command=self.mostrar_resumen, bg="blue", fg="white", font=("century gothic", 14))
+        self.summary_button.pack(padx=20, pady=20)
+        self.summary_button.config(state="disabled")
+        
+         # Cuadro de texto para mostrar los datos de las columnas seleccionadas
+        self.data_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=10, font=("century gothic", 12))
+        self.data_text.pack(padx=20, pady=20)
+        self.data_text.config(state=tk.DISABLED)
+        
+        # Inicialmente oculta la Listbox
+        self.column_listbox = None
 
-    def load_file(self, event):
+        
+        
+    def cargar_datos(self, event):
         try:
             file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
             if file_path:
@@ -43,105 +72,57 @@ class DataCleanerApp:
         except Exception as e:
             self.label.config(text=f"Error al cargar el archivo: {str(e)}")
             self.clean_button.config(state=tk.DISABLED)
-
-    def preprocess_data(self, X):
-        # Detectar y preprocesar características numéricas y categóricas
-        numeric_features = X.select_dtypes(include=['float64', 'int64']).columns
-        categorical_features = X.select_dtypes(include=['object', 'category']).columns
-
-        numeric_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='mean')),
-            ('scaler', StandardScaler())
-        ])
-
-        categorical_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-            ('onehot', OneHotEncoder(handle_unknown='ignore'))
-        ])
-
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ('num', numeric_transformer, numeric_features),
-                ('cat', categorical_transformer, categorical_features)
-            ],
-            remainder='drop'  # Ignorar las columnas que no se transforman
-        )
-        
-        return preprocessor
-
-    def clean_data(self):
-        if self.data is not None:
-            self.progress['value'] = 0  # Reiniciar el valor de la barra de progreso
-            self.progress.start()
             
-            # Procesamiento de datos
-            self.impute_missing_values()
-            
-            self.progress.stop()
-            self.progress['value'] = 100  # Finalizar la barra de progreso
-            
-            self.label.config(text="Datos limpiados.")
-            self.save_button.config(state=tk.NORMAL)
-
-    def save_data(self):
+    def guardar_datos(self):
         try:
             self.data.to_csv("cleaned_data.csv", index=False)
             self.label.config(text="Datos guardados como 'cleaned_data.csv'")
         except Exception as e:
             self.label.config(text=f"Error al guardar el archivo: {str(e)}")
-
-    def impute_missing_values(self):
+            
+    #funcion para que el usuario seleccione las columnas a revisar
+    def seleccion_columnas(self):
+        self.column_listbox = tk.Listbox(self.root, bg="red", selectmode=tk.MULTIPLE)
+        self.column_listbox.pack(pady=10)
         for column in self.data.columns:
-            if self.data[column].isnull().any():
-                if self.evaluate_imputation(column) <= 0.1:  # Umbral aceptable del MSE
-                    self.impute_column(column)
-                else:
-                    print(f"Columna {column} tiene un valor alto para la imputacion. Saltando.")
-
-    def impute_column(self, column):
-        df = self.data.copy()
-        train = df[df[column].notnull()]
-        test = df[df[column].isnull()]
-
-        if not test.empty:
-            X_train = train.drop(columns=[column])
-            y_train = train[column]
-            X_test = test.drop(columns=[column])
-
-            preprocessor = self.preprocess_data(X_train)
-            X_train = preprocessor.fit_transform(X_train)
-            X_test = preprocessor.transform(X_test)
-
-            param_grid = {'max_profundidad': [3, 5, 7, 10], 'min_muestras_divididas': [2, 5, 10]}
-            tree = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=3)  # Cambiado a cv=3 para tiempos más cortos
-            tree.fit(X_train, y_train)
-
-            predicted_values = tree.predict(X_test)
-            self.data.loc[self.data[column].isnull(), column] = predicted_values
-
-    def evaluate_imputation(self, column):
-        df = self.data.copy()
-        df_known = df[df[column].notnull()]
-        df_unknown = df[df[column].isnull()]
+            self.column_listbox.insert(tk.END, column)
+        self.column_button.config(state="disabled")
+        self.summary_button.config(state="normal")
+        #Mostramos las columnas de la base de datos y lo mandamos a la funcion mostrar_resumen
+        self.mostrar_resumen()
+    
         
-        if not df_unknown.empty:
-            X_train = df_known.drop(columns=[column])
-            y_train = df_known[column]
+        
+    def mostrar_resumen(self):
+        selected_indices = self.column_listbox.curselection()
+        self.selected_columns = [self.data.columns[i] for i in selected_indices]
+        
+        # Mostrar datos de las columnas seleccionadas
+        self.data_text.config(state=tk.NORMAL)
+        self.data_text.delete(1.0, tk.END)
+        
+        if self.selected_columns:
+            selected_data = self.data[self.selected_columns]
+            self.data_text.insert(tk.END, selected_data.to_string(index=False))
+        else:
+            self.data_text.insert(tk.END, "No hay columnas seleccionadas.")
+        
+        self.data_text.config(state=tk.DISABLED)
+        
+        
+    #opciones de limpieza con tecnicas de imputacion y preprocesamiento
+    def opciones_limpieza(self):
+        self.strategy_var = tk.StringVar(value="mean")
+        self.strategy_menu = tk.OptionMenu(self.root, self.strategy_var, "Promedio", "Mediana", "Más_Frecuente", "KNN", "Iterative")
+        self.strategy_menu.pack(pady=10)
+        self.cleaning_button.config(state="disabled")
+        
+    def limpiar_datos(self):
+        
+        return
 
-            preprocessor = self.preprocess_data(X_train)
-            X_train = preprocessor.fit_transform(X_train)
+    
 
-            param_grid = {'max_profundidad': [3, 5, 7, 10], 'min_muestras_divididas': [2, 5, 10]}
-            tree = GridSearchCV(DecisionTreeRegressor(), param_grid, cv=3)  # Cambiado a cv=3 para tiempos más cortos
-            tree.fit(X_train, y_train)
-            
-            X_test = X_train
-            y_pred = tree.predict(X_test)
-            
-            mse = mean_squared_error(y_train, y_pred)
-            print(f'Error cuadrático medio para la columna {column}: {mse}')
-            
-            return mse  # Return the MSE value
         
 if __name__ == "__main__":
     root = tk.Tk()
