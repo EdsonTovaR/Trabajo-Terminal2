@@ -1,8 +1,7 @@
 import tkinter as tk
-from tkinter import filedialog, ttk, simpledialog
+from tkinter import filedialog, ttk, messagebox
 import pandas as pd
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import IsolationForest
+from sklearn.tree import DecisionTreeClassifier
 import matplotlib.pyplot as plt
 
 class DataCleanerApp:
@@ -42,10 +41,6 @@ class DataCleanerApp:
         self.suggest_button.grid(row=1, column=1, padx=10, pady=10)
         self.suggest_button.config(state=tk.DISABLED)
         
-        self.anomaly_button = tk.Button(button_frame, text="Detectar Anomalías", command=self.detectar_anomalias, bg="red", fg="white", font=("century gothic", 14))
-        self.anomaly_button.grid(row=1, column=2, padx=10, pady=10)
-        self.anomaly_button.config(state=tk.DISABLED)
-        
         self.train_button = tk.Button(button_frame, text="Entrenar Modelo", command=self.entrenar_modelo, bg="blue", fg="white", font=("century gothic", 14))
         self.train_button.grid(row=2, column=0, padx=10, pady=10)
         self.train_button.config(state=tk.DISABLED)
@@ -53,6 +48,10 @@ class DataCleanerApp:
         self.graph_button = tk.Button(button_frame, text="Mostrar Gráficos", command=self.mostrar_graficos, bg="blue", fg="white", font=("century gothic", 14))
         self.graph_button.grid(row=2, column=1, padx=10, pady=10)
         self.graph_button.config(state=tk.DISABLED)
+
+        self.tree_button = tk.Button(button_frame, text="Crear Árbol", command=self.crear_arboles, bg="blue", fg="white", font=("century gothic", 14))
+        self.tree_button.grid(row=2, column=2, padx=10, pady=10)
+        self.tree_button.config(state=tk.DISABLED)
 
         self.progress = ttk.Progressbar(root, orient='horizontal', length=800, mode='determinate')
         self.progress.grid(row=2, column=0, columnspan=2, padx=20, pady=20)
@@ -71,9 +70,9 @@ class DataCleanerApp:
                 self.show_button.config(state=tk.NORMAL)
                 self.cleaning_button.config(state=tk.NORMAL)
                 self.suggest_button.config(state=tk.NORMAL)
-                self.anomaly_button.config(state=tk.NORMAL)
                 self.train_button.config(state=tk.NORMAL)
                 self.graph_button.config(state=tk.NORMAL)
+                self.tree_button.config(state=tk.NORMAL)
         except Exception as e:
             self.label.config(text=f"Error al cargar el archivo: {str(e)}")
             self.clean_button.config(state=tk.DISABLED)
@@ -96,18 +95,40 @@ class DataCleanerApp:
             self.data_text.config(state=tk.DISABLED)
             self.save_button.config(state=tk.NORMAL)
         
+    
     def mostrar_menu_limpieza(self):
-        def limpiar_opcion(opcion):
+        def limpiar_opcion(opcion, columna):
             if opcion == "Eliminar Nulos":
-                self.data = self.data.dropna()
+                self.data[columna] = self.data[columna].dropna()
             elif opcion == "Rellenar Nulos con Media":
-                self.data = self.data.fillna(self.data.mean())
-            self.mostrar_datos()
-        
-        opciones = ["Eliminar Nulos", "Rellenar Nulos con Media"]
-        seleccion = simpledialog.askstring("Opciones de Limpieza", "Selecciona una opción:", initialvalue=opciones[0])
-        limpiar_opcion(seleccion)
+                media = self.data[columna].mean()
+                self.data[columna] = self.data[columna].fillna(media)
 
+        # Crear la ventana principal oculta
+        root = tk.Tk()
+        root.withdraw()
+
+        # Iterar sobre cada columna
+        for columna in self.data.columns:
+            seleccion = messagebox.askquestion(
+                f"Opciones de Limpieza para '{columna}'",
+                f"Selecciona una opción para la columna '{columna}':",
+                type=messagebox.YESNO,
+                default=messagebox.YES,
+                icon=messagebox.QUESTION,
+                detail="Sí: Eliminar Nulos\nNo: Rellenar Nulos con Media"
+            )
+            
+            if seleccion == 'yes':
+                limpiar_opcion("Eliminar Nulos", columna)
+            elif seleccion == 'no':
+                limpiar_opcion("Rellenar Nulos con Media", columna)
+                
+            
+        
+        self.mostrar_datos()
+        self.graph_button.config(state=tk.NORMAL)
+            
     def sugerir_limpieza(self):
         if self.data is not None:
             missing_values = self.data.isnull().sum().sum()
@@ -117,33 +138,26 @@ class DataCleanerApp:
             
             if missing_values > 0:
                 sugerencias.append(f"Hay {missing_values} valores faltantes.")
+            else:
+                sugerencias.append("No hay valores faltantes.")
             
             if unique_values / self.data.size < 0.05:
-                sugerencias.append("Algunas columnas pueden tener baja diversidad en los datos.")
+                sugerencias.append("Algunas columnas pueden tener baja diversidad en los datos.")          
             
             self.data_text.config(state=tk.NORMAL)
             self.data_text.delete("1.0", tk.END)
             self.data_text.insert(tk.END, "\n".join(sugerencias) + "\n")
             self.data_text.config(state=tk.DISABLED)
     
-    def detectar_anomalias(self):
-        if self.data is not None:
-            clf = IsolationForest(contamination=0.1)
-            self.data['anomaly'] = clf.fit_predict(self.data.select_dtypes(include=[float, int]))
-            self.data_text.config(state=tk.NORMAL)
-            self.data_text.delete("1.0", tk.END)
-            self.data_text.insert(tk.END, f"Anomalías detectadas:\n{self.data[self.data['anomaly'] == -1]}\n")
-            self.data_text.config(state=tk.DISABLED)
-            
     def entrenar_modelo(self):
         if self.data is not None:
             X = self.data.select_dtypes(include=[float, int]).drop(columns=['anomaly'], errors='ignore')
             y = self.data.iloc[:, -1]
-            model = LinearRegression()
+            model = DecisionTreeClassifier()
             model.fit(X, y)
             self.data_text.config(state=tk.NORMAL)
             self.data_text.delete("1.0", tk.END)
-            self.data_text.insert(tk.END, f"Modelo entrenado con coeficientes: {model.coef_}\n")
+            self.data_text.insert(tk.END, f"Modelo entrenado con importancia de características: {model.feature_importances_}\n")
             self.data_text.config(state=tk.DISABLED)
 
     def mostrar_graficos(self):
@@ -151,8 +165,21 @@ class DataCleanerApp:
             self.data.hist(figsize=(10, 6))
             plt.show()
             
+    # Funcion para crear arboles de decisiones
+    def crear_arboles(self):
+        if self.data is not None:
+            X = self.data.select_dtypes(include=[float, int]).drop(columns=['anomaly'], errors='ignore')
+            y = self.data.iloc[:, -1]
+            model = DecisionTreeClassifier()
+            model.fit(X, y)
+            self.data_text.config(state=tk.NORMAL)
+            self.data_text.delete("1.0", tk.END)
+            self.data_text.insert(tk.END, f"Árbol de decisión creado con importancia de características: {model.feature_importances_}\n")
+            self.data_text.config(state=tk.DISABLED)
+            
     def limpiar_datos(self):
-        pass
+        return
+            
     
 if __name__ == "__main__":
     root = tk.Tk()
