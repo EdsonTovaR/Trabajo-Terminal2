@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import matplotlib.pyplot as plt
 
 class DataCleanerApp:
@@ -23,7 +23,6 @@ class DataCleanerApp:
         # Frame para los botones
         button_frame = tk.Frame(root, bg='black')
         button_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
-        
 
         self.save_button = tk.Button(button_frame, text="Guardar Datos", command=self.guardar_datos, bg="green", fg="white", font=("century gothic", 14))
         self.save_button.grid(row=0, column=1, padx=10, pady=10)
@@ -98,11 +97,9 @@ class DataCleanerApp:
                 media = self.data[columna].mean()
                 self.data[columna] = self.data[columna].fillna(media)
 
-        # Crear la ventana principal oculta
         root = tk.Tk()
         root.withdraw()
 
-        # Iterar sobre cada columna
         for columna in self.data.columns:
             seleccion = messagebox.askquestion(
                 f"Opciones de Limpieza para '{columna}'",
@@ -145,8 +142,7 @@ class DataCleanerApp:
         if self.data is not None:
             self.data.hist(figsize=(10, 6))
             plt.show()
-            
-    
+
     def seleccionar_todo(self):
         for var in self.column_vars.values():
             var.set(True)
@@ -158,98 +154,65 @@ class DataCleanerApp:
     def guardar_seleccion(self):
         self.selected_columns = [col for col, var in self.column_vars.items() if var.get()]
         messagebox.showinfo("Selección de Columnas", f"Columnas seleccionadas: {self.selected_columns}")
-    
-        # Obtenemos los índices de las columnas seleccionadas en el orden dado
+
         columnas = [self.data.columns.get_loc(col) for col in self.selected_columns]
-    
-        # X serán todas las filas (:) pero solo las columnas seleccionadas (columnas) menos la ultima
+
         X = self.data.iloc[:, columnas[:-1]].values
-        print("Datos de X: ", X)
-    
-        # y será la última columna seleccionada (asumiendo que es la variable objetivo)
-        y_col = columnas[-1]  # Última columna seleccionada
+        y_col = columnas[-1]
         y = self.data.iloc[:, y_col].values
-        print("Datos de y: ", y)
-    
-        # Transformamos y si es necesario (por ejemplo, si es categórico)
+
         le = LabelEncoder()
         y = le.fit_transform(y)
-    
-        # Dividimos los datos en entrenamiento y prueba
+
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-        
-        #mostramos el numero de datos que tenemos para el entrenamiento y la prueba
-        print("Datos de entrenamiento: ", len(X_train))
-        print("Datos de prueba: ", len(X_test))
-        
-        #configuracion del modelo
-        arbol = DecisionTreeClassifier(criterion= 'gini', max_depth=10, random_state=1)
-        
-        #ajuste del modelo
-        arbol.fit(X_train, y_train)
-        
-        #precision del modelo
-        print("Precisión de entrenamiento: %.2f" % arbol.score(X_train, y_train))
-        print("Precisión de prueba: %.2f" % arbol.score(X_test, y_test))
-        
-        # Creamos y entrenamos el clasificador
-        #clf = DecisionTreeClassifier()
-        #clf.fit(X_train, y_train)
-    
-        # Mostramos el árbol de decisión
+
+        param_grid = {
+            'criterion': ['gini', 'entropy'],
+            'max_depth': [None, 10, 20, 30],
+            'min_samples_split': [2, 10, 20],
+            'min_samples_leaf': [1, 5, 10]
+        }
+
+        dt = DecisionTreeClassifier(random_state=1)
+        grid_search = GridSearchCV(estimator=dt, param_grid=param_grid, cv=5, n_jobs=-1)
+        grid_search.fit(X_train, y_train)
+        best_tree = grid_search.best_estimator_
+
+        print("Mejores parámetros: ", grid_search.best_params_)
+        print("Precisión de entrenamiento: %.2f" % best_tree.score(X_train, y_train))
+        print("Precisión de prueba: %.2f" % best_tree.score(X_test, y_test))
+
+        cv_scores = cross_val_score(best_tree, X_train, y_train, cv=5)
+        print("Precisión media de validación cruzada: %.2f" % cv_scores.mean())
+
         plt.figure(figsize=(20, 10))
-        plot_tree(arbol, filled=True, feature_names=self.selected_columns)
-    
-        # Guardamos el árbol en un archivo png
+        plot_tree(best_tree, filled=True, feature_names=self.selected_columns[:-1])
         plt.savefig('arbol.png')
         plt.show()
 
-        
-
     def seleccionar_columnas_arbol(self):
-        if self.data is not None:
-            self.column_vars = {col: tk.BooleanVar() for col in self.data.columns}
-            
-            # Crear la ventana principal oculta
-            root = tk.Tk()
-            root.withdraw()
-            
-            # Crear la ventana de selección de columnas
-            columnas_window = tk.Toplevel()
-            columnas_window.title("Seleccionar Columnas para el Árbol")
-            columnas_window.geometry("800x600")
-            
-            # Crear el frame de las columnas
-            columnas_frame = tk.Frame(columnas_window)
-            columnas_frame.pack(padx=20, pady=20)
-            
-            # Crear los botones
-            select_all_button = tk.Button(columnas_frame, text="Seleccionar Todo", command=self.seleccionar_todo)
-            select_all_button.grid(row=0, column=0, padx=10, pady=10)
-            
-            deselect_all_button = tk.Button(columnas_frame, text="Deseleccionar Todo", command=self.deseleccionar_todo)
-            deselect_all_button.grid(row=0, column=1, padx=10, pady=10)
-            
-            save_button = tk.Button(columnas_frame, text="Guardar Selección", command=self.guardar_seleccion)
-            save_button.grid(row=0, column=2, padx=10, pady=10)
-            
-            # Crear los checkboxes
-            for i, col in enumerate(self.data.columns):
-                cb = tk.Checkbutton(columnas_frame, text=col, variable=self.column_vars[col])
-                cb.grid(row=i+1, column=0, columnspan=3, padx=10, pady=10)
-                
-            columnas_window.mainloop()
-            
-            
-            
+        top = tk.Toplevel(self.root)
+        top.title("Seleccionar Columnas para Árbol de Decisión")
+        top.geometry("600x400")
 
-    
-    
-    
-    
-    
-    
-            
+        self.column_vars = {col: tk.BooleanVar() for col in self.data.columns}
+        
+        for i, col in enumerate(self.data.columns):
+            chk = tk.Checkbutton(top, text=col, variable=self.column_vars[col])
+            chk.grid(row=i, column=0, sticky=tk.W)
+
+        select_all_button = tk.Button(top, text="Seleccionar Todo", command=self.seleccionar_todo)
+        select_all_button.grid(row=len(self.data.columns), column=0, sticky=tk.W)
+
+        deselect_all_button = tk.Button(top, text="Deseleccionar Todo", command=self.deseleccionar_todo)
+        deselect_all_button.grid(row=len(self.data.columns)+1, column=0, sticky=tk.W)
+
+        save_button = tk.Button(top, text="Guardar Selección", command=self.guardar_seleccion)
+        save_button.grid(row=len(self.data.columns)+2, column=0, sticky=tk.W)
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = DataCleanerApp(root)
