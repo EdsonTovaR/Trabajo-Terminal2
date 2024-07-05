@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn import metrics
 
 class DataCleanerApp:
     def __init__(self, root):
@@ -200,9 +201,18 @@ class DataCleanerApp:
             arbol = DecisionTreeClassifier(criterion='gini', max_depth=5, random_state=1)
         
             arbol.fit(X_train, y_train)
+            
+            pred_arbol = arbol.predict(X_test)
         
-            print("Precisión de entrenamiento: %.2f" % arbol.score(X_train, y_train))
-            print("Precisión de prueba: %.2f" % arbol.score(X_test, y_test))
+            #print("Precisión de entrenamiento: %.2f" % arbol.score(X_train, y_train))
+            #print("Precisión de prueba: %.2f" % arbol.score(X_test, y_test))
+            
+            #comparamos los valores reales con los predichos por el modelo
+            print("Valores Reales: ", y_test)
+            print("Valores Predichos: ", pred_arbol)
+            
+            #Evaluamos el modelo y observamos la prediccion
+            print("Precision del arbol de decisiones: ", metrics.accuracy_score(y_test, pred_arbol))
         
             plt.figure(figsize=(20, 10))
             plot_tree(
