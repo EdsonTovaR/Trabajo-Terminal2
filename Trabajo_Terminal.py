@@ -6,7 +6,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sqlite3
 from sklearn import metrics
+
 
 class DataCleanerApp:
     def __init__(self, root):
@@ -26,7 +28,6 @@ class DataCleanerApp:
         button_frame = tk.Frame(root, bg='black')
         button_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
         
-
         self.save_button = tk.Button(button_frame, text="Guardar Datos", command=self.guardar_datos, bg="green", fg="white", font=("century gothic", 14))
         self.save_button.grid(row=0, column=1, padx=10, pady=10)
         self.save_button.config(state=tk.DISABLED)
@@ -60,11 +61,24 @@ class DataCleanerApp:
 
     def cargar_datos(self, event):
         try:
-            file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+            file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xls *.xlsx"), ("SQLite DB files", "*.db")])
             if file_path:
-                self.data = pd.read_csv(file_path)
+                if file_path.endswith('.csv'):
+                    self.data = pd.read_csv(file_path)
+                elif file_path.endswith(('.xls', '.xlsx')):
+                    self.data = pd.read_excel(file_path)                
+                elif file_path.endswith('.db'):
+                    conn = sqlite3.connect(file_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    tables = cursor.fetchall()
+                    # Asumimos que queremos la primera tabla
+                    table_name = tables[0][0] if tables else None
+                    if table_name:
+                        self.data = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+                    conn.close()
                 self.label.config(text="Archivo cargado: " + file_path.split("/")[-1])
-                
+
                 self.show_button.config(state=tk.NORMAL)
                 self.cleaning_button.config(state=tk.NORMAL)
                 self.suggest_button.config(state=tk.NORMAL)
@@ -72,7 +86,7 @@ class DataCleanerApp:
                 self.tree_button.config(state=tk.NORMAL)
         except Exception as e:
             self.label.config(text=f"Error al cargar el archivo: {str(e)}")
-            self.clean_button.config(state=tk.DISABLED)
+            self.cleaning_button.config(state=tk.DISABLED)
             
     def guardar_datos(self):
         try:
@@ -93,7 +107,6 @@ class DataCleanerApp:
             self.save_button.config(state=tk.NORMAL)
         
     def mostrar_menu_limpieza(self):
-        
         def limpiar_opcion(opcion, columna):
             if opcion == "Eliminar Nulos":
                 self.data[columna] = self.data[columna].dropna()
@@ -124,7 +137,6 @@ class DataCleanerApp:
                 limpiar_opcion("Eliminar Nulos", columna)
             elif seleccion == 'no':
                 limpiar_opcion("Rellenar Nulos con Media", columna)
-                
                 
         self.mostrar_datos()
         self.graph_button.config(state=tk.NORMAL)
@@ -176,59 +188,46 @@ class DataCleanerApp:
                 if self.data[column].dtype == 'object' or self.data[column].dtype.name == 'category':
                     self.data[column] = le.fit_transform(self.data[column].astype(str))
 
+            # Separar características y etiquetas
             X = self.data[self.selected_columns[:-1]].values
-            print("Esto es X:",X)
             y = self.data[self.selected_columns[-1]].values
-            print("Esto es y: ",y)
             return X, y
 
     def guardar_seleccion(self):
         self.selected_columns = [col for col, var in self.column_vars.items() if var.get()]
-        messagebox.showinfo("Selección de Columnas", f"Columnas seleccionadas: {self.selected_columns}")
+        
+        if len(self.selected_columns) < 2:
+            messagebox.showerror("Error", "Debe seleccionar al menos una columna de característica y una de etiqueta.")
+            return
 
+        messagebox.showinfo("Selección de Columnas", f"Columnas seleccionadas: {self.selected_columns}")
         self.columnas_window.destroy()
 
         try:
             X, y = self.preprocesar()
-            
-            
-            
+        
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
-            
-            print("Datos de entrenamiento: ", len(X_train))
-            print("Datos de prueba: ", len(X_test))
-        
+    
             arbol = DecisionTreeClassifier(criterion='gini', max_depth=5, random_state=1)
-        
             arbol.fit(X_train, y_train)
-            
+        
             pred_arbol = arbol.predict(X_test)
         
-            #print("Precisión de entrenamiento: %.2f" % arbol.score(X_train, y_train))
-            #print("Precisión de prueba: %.2f" % arbol.score(X_test, y_test))
-            
-            #comparamos los valores reales con los predichos por el modelo
-            print("Valores Reales: ", y_test)
-            print("Valores Predichos: ", pred_arbol)
-            
-            #Evaluamos el modelo y observamos la prediccion
-            print("Precision del arbol de decisiones: ", metrics.accuracy_score(y_test, pred_arbol))
+            print("Precisión del árbol de decisiones: ", metrics.accuracy_score(y_test, pred_arbol))
         
-            plt.figure(figsize=(20, 10))
-            plot_tree(
-                arbol, 
-                filled=True, 
-                feature_names=self.selected_columns[:-1],
-                class_names=[str(cl) for cl in arbol.classes_],
-                proportion=True
-            )
+            nombre = "arbol.png"
+            feature_names = self.selected_columns[:-1]
+            target_names = list(map(str, set(y)))  # Aseguramos que las etiquetas estén en formato de lista de strings
         
-            plt.title("Árbol de decisión")
-            plt.savefig('arbol_colores.png')
+            plt.figure(figsize=(20,10))
+            plot_tree(arbol, filled=True, feature_names=feature_names, class_names=target_names)
+            plt.title("Arbol de decisión")
+            plt.text(0.9, 0.5, f'Precisión: {metrics.accuracy_score(y_test, pred_arbol)*100:.2f}%', fontsize=20, ha='left')
+            plt.savefig(nombre)
             plt.show()
-    
+
         except Exception as e:
-            print(f"Error: {e}")
+            messagebox.showerror("Error", str(e))
 
     def seleccionar_columnas_arbol(self):
         if self.data is not None:
